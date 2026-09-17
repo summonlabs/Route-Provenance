@@ -265,10 +265,10 @@ never widen it beyond the configured limits.
   between two coordinators, so running two coordinators over one store is not supported.
 * Provenance authenticity is integrity-checked, not cryptographically attested or signed.
 * Verification was performed on Windows x64 with MSVC; the POSIX socket and file paths are
-  implemented but were not validated on this host (see the validation report).
-* AddressSanitizer for x64 MSVC is not available in this build environment; the exact evidence is
-  recorded in the validation report. Debug runtime checks are used instead and were proven to
-  fire on a deliberate defect.
+  implemented but were not validated on this host (see [VALIDATION.md](VALIDATION.md)).
+* AddressSanitizer for x64 MSVC is not installed in this build environment; the exact linker
+  evidence is recorded in [VALIDATION.md](VALIDATION.md). The Debug configuration, which enables
+  the MSVC debug runtime checks, was used as the compensating control instead.
 
 ## License
 

@@ -40,7 +40,9 @@ function(rp_configure_target target)
       target_compile_options(${target} PRIVATE /WX)
     endif()
     if(RP_ENABLE_ANALYZE)
-      target_compile_options(${target} PRIVATE /analyze /analyze:external:W0)
+      # Every translation unit in this project is first-party, so no external-header
+      # suppression is needed and none is configured.
+      target_compile_options(${target} PRIVATE /analyze)
     endif()
     if(RP_ENABLE_ASAN)
       target_compile_options(${target} PRIVATE /fsanitize=address)
