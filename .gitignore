@@ -1,0 +1,42 @@
+# Build trees
+build/
+out/
+bin/
+lib/
+_deps/
+CMakeUserPresets.json
+CMakeCache.txt
+CMakeFiles/
+*.vcxproj
+*.vcxproj.*
+*.sln
+
+# Compiled artifacts
+*.obj
+*.o
+*.exe
+*.dll
+*.lib
+*.exp
+*.pdb
+*.ilk
+*.idb
+*.map
+
+# Test and benchmark debris
+*.rpstore
+*.rpstore.tmp*
+*.ready
+*.log
+*.dmp
+Testing/
+test-out/
+bench-out/
+
+# Editor and OS noise
+.vs/
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
