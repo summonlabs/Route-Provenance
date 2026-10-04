@@ -1,7 +1,7 @@
 # Route Provenance
 
 Route Provenance is the authoritative route-lineage, derivation-history, evidence-binding and
-explanation runtime of the Distributed Fabric Infrastructure stack. It answers one question:
+explanation runtime for data-center fabric infrastructure. It answers one question:
 
 > Why does this exact route state exist, which authoritative facts, decisions, generations,
 > policies, paths, publishers and prior route states produced it, what lineage connects it to
