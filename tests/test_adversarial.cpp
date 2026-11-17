@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "harness.hpp"
+#include "route_provenance/runtime.hpp"
 #include "route_provenance/wire.hpp"
 #include "support.hpp"
 
@@ -293,4 +294,20 @@ RP_TEST(adversarial, wire_attacks_are_refused) {
   const auto refused =
       decode_registration(ByteSpan(extended.encode().data(), extended.encode().size()), limits);
   RP_EXPECT_EQ(refused.outcome(), Outcome::ProtocolFailure);
+}
+
+RP_TEST(adversarial, a_second_server_cannot_take_a_listening_port) {
+  Fixture fixture;
+  ProvenanceServer first(fixture.store, ServerOptions{});
+  std::string error;
+  const bool first_started = first.start(error).outcome() == Outcome::Ok;
+  RP_REQUIRE_TRUE(first_started);
+  ServerOptions options;
+  options.port = first.port();
+  ProvenanceServer second(fixture.store, options);
+  // Two servers must never share one listening port: the second start fails.
+  const bool second_started = second.start(error).outcome() == Outcome::Ok;
+  RP_EXPECT_FALSE(second_started);
+  static_cast<void>(second.stop());
+  static_cast<void>(first.stop());
 }

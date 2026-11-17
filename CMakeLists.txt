@@ -45,8 +45,10 @@ function(rp_configure_target target)
       target_compile_options(${target} PRIVATE /analyze)
     endif()
     if(RP_ENABLE_ASAN)
-      target_compile_options(${target} PRIVATE /fsanitize=address)
-      target_link_options(${target} PRIVATE /fsanitize=address)
+      # Without debug information MSVC reports C5072, which /WX turns into a
+      # build failure in Release; /Zi and /DEBUG also give symbolized reports.
+      target_compile_options(${target} PRIVATE /fsanitize=address /Zi)
+      target_link_options(${target} PRIVATE /fsanitize=address /DEBUG)
     endif()
   else()
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)

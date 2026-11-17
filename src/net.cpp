@@ -890,8 +890,15 @@ Status ProvenanceServer::start(std::string& error) {
     return Status::failure(Outcome::IoFailure, error);
   }
   const int enabled = 1;
+#if defined(_WIN32)
+  // SO_REUSEADDR on Windows lets a second socket bind a port that is still
+  // listening; exclusive use makes that second bind fail instead.
+  static_cast<void>(setsockopt(impl_->listener, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                               reinterpret_cast<const char*>(&enabled), sizeof(enabled)));
+#else
   static_cast<void>(setsockopt(impl_->listener, SOL_SOCKET, SO_REUSEADDR,
                                reinterpret_cast<const char*>(&enabled), sizeof(enabled)));
+#endif
   sockaddr_in address{};
   address.sin_family = AF_INET;
   address.sin_port = htons(impl_->options.port);

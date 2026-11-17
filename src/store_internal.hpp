@@ -158,6 +158,10 @@ struct ProvenanceStore::Impl {
 
   /// Leaf lock: guards the publisher registry.
   mutable std::mutex publisher_mutex;
+
+  /// One save at a time: saves share one temporary file, and each writes the
+  /// state current when it runs, so the last save to finish is also the newest.
+  mutable std::mutex save_mutex;
   std::map<PublisherKey, PublisherRecord> publishers;
 
   bool recovered = false;

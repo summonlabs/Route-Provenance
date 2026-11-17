@@ -229,8 +229,11 @@ RP_TEST(unit, outcome_classification_partitions_the_enumeration) {
                         (outcome_is_rejection(outcome) ? 1 : 0);
     RP_EXPECT_EQ(classes, outcome == Outcome::Ok ? 0 : 1);
     RP_EXPECT_FALSE(to_string(outcome) == "UNKNOWN");
-    RP_REQUIRE_TRUE(parse_outcome(to_string(outcome)).has_value());
-    RP_EXPECT_EQ(*parse_outcome(to_string(outcome)), outcome);
+    // Kept in a named optional: RP_EXPECT_EQ binds a reference to its operand,
+    // and a reference into a temporary optional dangles once the binding ends.
+    const auto parsed = parse_outcome(to_string(outcome));
+    RP_REQUIRE_TRUE(parsed.has_value());
+    RP_EXPECT_EQ(*parsed, outcome);
   }
 }
 
@@ -240,8 +243,9 @@ RP_TEST(unit, every_enumeration_value_round_trips_through_its_name) {
                             NodeKind::ConvergencePlan, NodeKind::PolicyDecision,
                             NodeKind::AdministrativeAction, NodeKind::CompactedSummary};
   for (const NodeKind kind : kinds) {
-    RP_REQUIRE_TRUE(parse_node_kind(to_string(kind)).has_value());
-    RP_EXPECT_EQ(*parse_node_kind(to_string(kind)), kind);
+    const auto parsed = parse_node_kind(to_string(kind));
+    RP_REQUIRE_TRUE(parsed.has_value());
+    RP_EXPECT_EQ(*parsed, kind);
   }
   const EdgeType edges[] = {EdgeType::DerivedFrom, EdgeType::Supersedes, EdgeType::Replaces,
                             EdgeType::Withdraws, EdgeType::Revalidates, EdgeType::AuthorizedBy,
@@ -249,8 +253,9 @@ RP_TEST(unit, every_enumeration_value_round_trips_through_its_name) {
                             EdgeType::TransitionedBy, EdgeType::RolledBackFrom, EdgeType::RevokedBy,
                             EdgeType::RetiredBy, EdgeType::Corrects, EdgeType::Invalidates};
   for (const EdgeType type : edges) {
-    RP_REQUIRE_TRUE(parse_edge_type(to_string(type)).has_value());
-    RP_EXPECT_EQ(*parse_edge_type(to_string(type)), type);
+    const auto parsed = parse_edge_type(to_string(type));
+    RP_REQUIRE_TRUE(parsed.has_value());
+    RP_EXPECT_EQ(*parsed, type);
     const bool classified = edge_type_is_successor_relation(type) ||
                             edge_type_is_evidence_relation(type) || edge_type_is_action_relation(type);
     RP_EXPECT_TRUE(classified);

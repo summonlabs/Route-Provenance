@@ -3,11 +3,14 @@
 #if defined(_WIN32)
 #include <io.h>
 #endif
+#include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <map>
 #include <set>
 #include <string>
+#include <system_error>
+#include <thread>
 #include <vector>
 
 #include "codec.hpp"
@@ -463,13 +466,30 @@ Status write_store_image_atomic(const StoreImage& image, const std::string& path
   }
   std::error_code error;
   const std::filesystem::path destination = to_path(path);
-  std::filesystem::rename(temporary_path, destination, error);
-  if (error) {
-    std::error_code ignored;
-    static_cast<void>(std::filesystem::remove(temporary_path, ignored));
-    return Status::failure(Outcome::IoFailure, "cannot replace the store file atomically");
+  // While a reader has the store open (an inspection, an antivirus or indexing
+  // scan) the replacing rename fails on Windows until the reader closes the
+  // file, so it is retried for a bounded time (about 2 s) instead of losing the
+  // write.
+  for (int attempt = 0;; ++attempt) {
+    std::filesystem::rename(temporary_path, destination, error);
+    if (!error) {
+      return Status::ok();
+    }
+#if defined(_WIN32)
+    // ERROR_ACCESS_DENIED, ERROR_SHARING_VIOLATION and ERROR_LOCK_VIOLATION.
+    const bool transient = error.category() == std::system_category() &&
+                           (error.value() == 5 || error.value() == 32 || error.value() == 33);
+#else
+    const bool transient = false;
+#endif
+    if (!transient || attempt >= 100) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
-  return Status::ok();
+  std::error_code ignored;
+  static_cast<void>(std::filesystem::remove(temporary_path, ignored));
+  return Status::failure(Outcome::IoFailure, "cannot replace the store file atomically");
 }
 
 // ---------------------------------------------------------------------------
@@ -519,6 +539,7 @@ Status ProvenanceStore::save(const std::string& path) const {
   if (path.empty()) {
     return Status::failure(Outcome::MalformedRequest, "store path is required");
   }
+  const std::lock_guard<std::mutex> save_guard(impl_->save_mutex);
   Result<StoreImage> image = export_image();
   if (!image.has_value()) {
     return Status::failure(image.outcome(), image.detail());

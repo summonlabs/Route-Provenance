@@ -1,7 +1,10 @@
 // Route Provenance - persistence suite: round trip, corruption, truncation and recovery.
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <fstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "harness.hpp"
@@ -325,4 +328,56 @@ RP_TEST(persistence, atomic_replacement_leaves_no_partial_file) {
   const auto image = read_store_image(path, limits);
   RP_REQUIRE_HAS_VALUE(image);
   RP_EXPECT_EQ(image.value().lineages.front().nodes.size(), 2U);
+}
+
+RP_TEST(persistence, store_replacement_waits_for_a_reader_to_close) {
+  const std::string path = store_path("reader");
+  Fixture fixture;
+  RP_REQUIRE_HAS_VALUE(fixture.publish_root(342, "route/reader"));
+  RP_EXPECT_EQ(fixture.store.save(path).outcome(), Outcome::Ok);
+  RP_REQUIRE_HAS_VALUE(fixture.publish_successor(342, "route/reader", 2, ReasonCode::RouteReplaced));
+  Outcome second = Outcome::IoFailure;
+  bool reader_opened = false;
+  {
+    // Another tool reading the store (an inspection, a scan) holds it open while
+    // the store is replaced, and closes it shortly after.
+    std::ifstream reader(path, std::ios::binary);
+    reader_opened = reader.is_open();
+    std::thread writer([&fixture, &path, &second] { second = fixture.store.save(path).outcome(); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    reader.close();
+    writer.join();
+  }
+  RP_EXPECT_TRUE(reader_opened);
+  // The write is not lost because a reader had the file open for a moment.
+  RP_EXPECT_EQ(second, Outcome::Ok);
+  const auto image = read_store_image(path, Limits::defaults());
+  RP_REQUIRE_HAS_VALUE(image);
+  RP_EXPECT_EQ(image.value().lineages.front().nodes.size(), 2U);
+}
+
+RP_TEST(persistence, concurrent_saves_leave_a_loadable_store) {
+  const std::string path = store_path("concurrent");
+  Fixture fixture;
+  RP_REQUIRE_HAS_VALUE(fixture.publish_root(343, "route/concurrent"));
+  // A store may be used from many threads at once, and save() is one of its
+  // const operations.
+  std::atomic<int> failures{0};
+  std::vector<std::thread> savers;
+  for (int saver = 0; saver < 8; ++saver) {
+    savers.emplace_back([&fixture, &path, &failures] {
+      for (int round = 0; round < 25; ++round) {
+        if (fixture.store.save(path).outcome() != Outcome::Ok) {
+          failures.fetch_add(1);
+        }
+      }
+    });
+  }
+  for (std::thread& saver : savers) {
+    saver.join();
+  }
+  RP_EXPECT_EQ(failures.load(), 0);
+  const auto image = read_store_image(path, Limits::defaults());
+  RP_REQUIRE_HAS_VALUE(image);
+  RP_EXPECT_EQ(image.value().lineages.size(), 1U);
 }
